@@ -17,32 +17,35 @@ php:
  - 7.1
 
 env:
-  global:
-    - IGNORE_PATHS=ignore
-    - IGNORE_NAMES=ignore_name.php
-    - MUSTACHE_IGNORE_NAMES=broken.mustache
-    - DB=pgsql
-    - MOODLE_BRANCH=MOODLE_36_STABLE
-    - PROFILE=chrome
+ global:
+  - MOODLE_BRANCH=MOODLE_36_STABLE
+ matrix:
+  - DB=pgsql
+  - DB=mysqli
 
-install:
+before_install:
   - phpenv config-rm xdebug.ini
   - nvm install 8.9
   - nvm use 8.9
-  - make init
-  # Start Selenium Standalone with Chrome/Firefox installed.
-  - docker run -d -p 127.0.0.1:4444:4444 --net=host -v /dev/shm:/dev/shm selenium/standalone-${PROFILE}:3
-  # Mimic how a Moodle plugin would be run.
-  - cp -R tests/Fixture/moodle-local_travis ../moodle-local_travis
-  - export PATH="$(cd bin; pwd):$(cd vendor/bin; pwd):$PATH"
-  - export TRAVIS_BUILD_DIR=$(cd ../moodle-local_travis; pwd)
+  - cd ../..
+  - composer create-project -n --no-dev --prefer-dist blackboard-open-source/moodle-plugin-ci ci ^2
+  - export PATH="$(cd ci/bin; pwd):$(cd ci/vendor/bin; pwd):$PATH"
+  - docker run -d -p 127.0.0.1:4444:4444 --net=host -v /dev/shm:/dev/shm selenium/standalone-firefox:3
 
-  # Finally, the standard install step.
+install:
   - moodle-plugin-ci add-plugin moodleou/moodle-editor_ousupsub
   - moodle-plugin-ci add-plugin moodleou/moodle-qtype_pmatch
   - moodle-plugin-ci install
 
 script:
-  # This is basically "integration" testing.
+  - moodle-plugin-ci phplint
+  - moodle-plugin-ci phpcpd
+  - moodle-plugin-ci phpmd
+  - moodle-plugin-ci codechecker
+  - moodle-plugin-ci validate
+  - moodle-plugin-ci savepoints
+  - moodle-plugin-ci mustache
+  - moodle-plugin-ci grunt
+  - moodle-plugin-ci phpdoc
   - moodle-plugin-ci phpunit
-  - moodle-plugin-ci behat --profile $PROFILE
+  - moodle-plugin-ci behat
