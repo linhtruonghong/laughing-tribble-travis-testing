@@ -1,12 +1,14 @@
 language: php
 
-addons:
-  postgresql: "9.4"
+# Behat no longer passes when false.
+sudo: true
 
-services:
-  - mysql
-  - postgresql
-  - docker
+addons:
+  firefox: "47.0.1"
+  postgresql: "9.4"
+  apt:
+    packages:
+      - chromium-chromedriver
 
 cache:
   directories:
@@ -14,31 +16,37 @@ cache:
     - $HOME/.npm
 
 php:
- - 7.1
+ - 7.3
 
 env:
- global:
-  - MOODLE_BRANCH=MOODLE_36_STABLE
-  - PROFILE=chrome
-  - DB=pgsql
+  global:
+    - IGNORE_PATHS=ignore
+    - IGNORE_NAMES=ignore_name.php
+    - MUSTACHE_IGNORE_NAMES=broken.mustache
+    - DB=pgsql
+    - MOODLE_BRANCH=master
+    - PROFILE=chrome
 
-before_install:
+install:
   - phpenv config-rm xdebug.ini
   - nvm install 8.9
   - nvm use 8.9
-  - cd ../..
-  - composer create-project -n --no-dev --prefer-dist blackboard-open-source/moodle-plugin-ci ci ^2
-  - export PATH="$(cd ci/bin; pwd):$(cd ci/vendor/bin; pwd):$PATH"
-  - docker run -d -p 127.0.0.1:4444:4444 --net=host -v /dev/shm:/dev/shm selenium/standalone-${PROFILE}:3
+  - make init
+
   # Mimic how a Moodle plugin would be run.
   - cp -R tests/Fixture/moodle-local_travis ../moodle-local_travis
   - export PATH="$(cd bin; pwd):$(cd vendor/bin; pwd):$PATH"
   - export TRAVIS_BUILD_DIR=$(cd ../moodle-local_travis; pwd)
 
-install:
+  # Finally, the standard install step.
   - moodle-plugin-ci add-plugin moodleou/moodle-editor_ousupsub
   - moodle-plugin-ci add-plugin moodleou/moodle-qtype_pmatch
   - moodle-plugin-ci install
 
 script:
+  - make test-phpunit
+
+  # This is basically "integration" testing.
+
+  - moodle-plugin-ci phpunit --coverage-text
   - moodle-plugin-ci behat --profile $PROFILE
