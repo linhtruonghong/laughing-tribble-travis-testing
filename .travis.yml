@@ -27,17 +27,16 @@ env:
     - MOODLE_BRANCH=master
     - PROFILE=chrome
 
-install:
+before_install:
+  # Mimic how a Moodle plugin would be run.
   - phpenv config-rm xdebug.ini
   - nvm install 8.9
   - nvm use 8.9
-  - make init
+  - cd ../..
+  - composer create-project -n --no-dev --prefer-dist moodlerooms/moodle-plugin-ci ci ^2
+  - export PATH="$(cd ci/bin; pwd):$(cd ci/vendor/bin; pwd):$PATH"
 
-  # Mimic how a Moodle plugin would be run.
-  - cp -R tests/Fixture/moodle-local_travis ../moodle-local_travis
-  - export PATH="$(cd bin; pwd):$(cd vendor/bin; pwd):$PATH"
-  - export TRAVIS_BUILD_DIR=$(cd ../moodle-local_travis; pwd)
-
+install:
   # Finally, the standard install step.
   - moodle-plugin-ci add-plugin moodleou/moodle-editor_ousupsub
   - moodle-plugin-ci add-plugin moodleou/moodle-qtype_pmatch
