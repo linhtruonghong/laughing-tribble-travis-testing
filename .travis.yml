@@ -1,13 +1,17 @@
 language: php
 
-# Behat no longer passes when false.
-sudo: true
+dist: xenial
+sudo: required
+
+services:
+  - mysql
 
 addons:
   firefox: "47.0.1"
-  postgresql: "9.4"
+  postgresql: "9.6"
   apt:
     packages:
+      - openjdk-8-jre-headless
       - chromium-chromedriver
 
 cache:
@@ -15,20 +19,29 @@ cache:
     - $HOME/.composer/cache
     - $HOME/.npm
 
-php:
- - 7.3
+matrix:
+  include:
+    - php: 7.3
+      env:
+        - MOODLE_BRANCH=master
+        - DB=pgsql
 
-env:
-  global:
-    - IGNORE_PATHS=ignore
-    - IGNORE_NAMES=ignore_name.php
-    - MUSTACHE_IGNORE_NAMES=broken.mustache
-    - DB=pgsql
-    - MOODLE_BRANCH=master
-    - PROFILE=chrome
+    - php: 7.2
+      env:
+        - MOODLE_BRANCH=MOODLE_37_STABLE
+        - DB=mysqli
+
+    - php: 7.1
+      env:
+        - MOODLE_BRANCH=MOODLE_36_STABLE
+        - DB=pgsql
+
+    - php: 7.0
+      env:
+        - MOODLE_BRANCH=MOODLE_35_STABLE
+        - DB=mysqli
 
 before_install:
-  # Mimic how a Moodle plugin would be run.
   - phpenv config-rm xdebug.ini
   - nvm install 8.9
   - nvm use 8.9
@@ -37,15 +50,10 @@ before_install:
   - export PATH="$(cd ci/bin; pwd):$(cd ci/vendor/bin; pwd):$PATH"
 
 install:
-  # Finally, the standard install step.
   - moodle-plugin-ci add-plugin moodleou/moodle-editor_ousupsub
   - moodle-plugin-ci add-plugin moodleou/moodle-qtype_pmatch
   - moodle-plugin-ci install
 
 script:
-  - make test-phpunit
-
-  # This is basically "integration" testing.
-
-  - moodle-plugin-ci phpunit --coverage-text
-  - moodle-plugin-ci behat --profile $PROFILE
+  - moodle-plugin-ci phpunit
+  - moodle-plugin-ci behat
